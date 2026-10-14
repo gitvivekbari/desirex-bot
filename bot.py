@@ -1,7 +1,6 @@
 import os
 import base64
 import logging
-import requests
 from threading import Thread
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -17,7 +16,6 @@ from flask import Flask
 # ─────────────────────────────────────────────
 BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
 DB_URL = os.environ.get("DB_URL", "")
-IMGBB_API_KEY = os.environ.get("IMGBB_API_KEY", "")
 FIREBASE_KEY = "firebase_key.json"
 
 # Admin IDs — comma-separated
@@ -88,21 +86,12 @@ def save_profile(data, photos):
 
 
 def upload_photo(file_bytes):
-    """Upload to ImgBB, return direct URL."""
+    """Convert to base64 data URI (no external hosting needed)."""
     try:
-        url = "https://api.imgbb.com/1/upload"
-        payload = {
-            "key": IMGBB_API_KEY,
-            "image": base64.b64encode(file_bytes).decode('utf-8'),
-        }
-        r = requests.post(url, data=payload, timeout=30)
-        data = r.json()
-        if data.get('success'):
-            return data['data']['url']
-        logger.error(f"ImgBB error: {data}")
-        return None
+        b64 = base64.b64encode(file_bytes).decode('utf-8')
+        return f"data:image/jpeg;base64,{b64}"
     except Exception as e:
-        logger.error(f"Upload failed: {e}")
+        logger.error(f"Base64 encode failed: {e}")
         return None
 
 
@@ -481,7 +470,6 @@ async def cancel(update, ctx):
 # MAIN
 # ─────────────────────────────────────────────
 def main():
-    # Flask health server background mein
     Thread(target=run_health_server, daemon=True).start()
 
     app = Application.builder().token(BOT_TOKEN).build()
